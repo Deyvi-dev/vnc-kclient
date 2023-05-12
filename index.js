@@ -5,7 +5,7 @@ var CUSTOM_USER = process.env.CUSTOM_USER || 'abc';
 var PASSWORD = process.env.PASSWORD || 'abc';
 var SUBFOLDER = process.env.SUBFOLDER || '/';
 var TITLE = process.env.TITLE || 'KasmVNC Client';
-var FM_HOME = process.env.FM_HOME || '/config';
+var FM_HOME = process.env.FM_HOME || '/config/Downloads';
 
 //// Application Variables ////
 var socketIO = require('socket.io');
@@ -17,6 +17,8 @@ var bodyParser = require('body-parser');
 var baseRouter = express.Router();
 var fsw = require('fs').promises;
 var fs = require('fs');
+var chokidar = require('chokidar'); // Adicionada a biblioteca chokidar
+
 // Audio init
 var audioEnabled = true;
 var PulseAudio = require('pulseaudio2');
@@ -132,6 +134,18 @@ io.on('connection', async function (socket) {
     }
     getFiles(directory);
   }
+
+ // Watch for new files in FM_HOME directory
+const watcher = chokidar.watch(FM_HOME);
+watcher.on('add', function (filePath) {
+  console.log('Novo arquivo:', filePath);
+  send('newfile', filePath); // Envia o caminho do arquivo para o cliente via socket.io
+  // Exibe um alerta na tela do cliente (requer suporte no lado do cliente)
+  // send('showalert', 'Novo arquivo detectado: ' + filePath);
+
+  // Realiza o download do arquivo
+  downloadFile(filePath);
+});
 
   // Incoming socket requests
   socket.on('open', checkAuth);
