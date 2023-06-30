@@ -140,7 +140,7 @@ const watcher = chokidar.watch(FM_HOME);
 let latestFile = null;
 
 watcher.on('add', async function (filePath) {
-  console.log('Novo arquivo:', filePath);
+  // console.log('Novo arquivo:', filePath);
 
   if (isFileNew(filePath) && !isPartFile(filePath)) {
     // Aguarda 2 segundos antes de fazer o download
@@ -154,7 +154,7 @@ watcher.on('add', async function (filePath) {
     while (!downloadComplete) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       newSize = fs.statSync(filePath).size;
-      console.log('Tamanho do arquivo:', newSize, filePath);
+      // console.log('Tamanho do arquivo:', newSize, filePath);
 
       if (newSize === previousSize && newSize !== 0) {
         // Não houve alterações no tamanho do arquivo, o download está completo
