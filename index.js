@@ -135,17 +135,65 @@ io.on('connection', async function (socket) {
     getFiles(directory);
   }
 
- // Watch for new files in FM_HOME directory
+// Watch for new files in FM_HOME directory
 const watcher = chokidar.watch(FM_HOME);
-watcher.on('add', function (filePath) {
-  console.log('Novo arquivo:', filePath);
-  send('newfile', filePath); // Envia o caminho do arquivo para o cliente via socket.io
-  // Exibe um alerta na tela do cliente (requer suporte no lado do cliente)
-  // send('showalert', 'Novo arquivo detectado: ' + filePath);
+let latestFile = null;
 
-  // Realiza o download do arquivo
-  downloadFile(filePath);
+watcher.on('add', async function (filePath) {
+  console.log('Novo arquivo:', filePath);
+
+  if (isFileNew(filePath) && !isPartFile(filePath)) {
+    // Aguarda 2 segundos antes de fazer o download
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Verifica se há alterações adicionais no tamanho do arquivo
+    let previousSize = fs.statSync(filePath).size;
+    let newSize = previousSize;
+    let downloadComplete = false;
+
+    while (!downloadComplete) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      newSize = fs.statSync(filePath).size;
+      console.log('Tamanho do arquivo:', newSize, filePath);
+
+      if (newSize === previousSize && newSize !== 0) {
+        // Não houve alterações no tamanho do arquivo, o download está completo
+        downloadComplete = true;
+      } else {
+        // Houve alterações no tamanho do arquivo, aguardar mais 2 segundos
+        previousSize = newSize;
+      }
+    }
+
+    if (downloadComplete) {
+      // Envia o caminho do arquivo para o cliente via socket.io
+      send('newfile', filePath);
+
+      // Realiza o download do arquivo
+      await downloadFile(filePath);
+    }
+  }
 });
+
+function isFileNew(filePath) {
+  // Verifica se o arquivo é mais recente do que o último arquivo processado
+  return latestFile === null || latestFile < fs.statSync(filePath).mtime;
+}
+
+function isPartFile(filePath) {
+  // Verifica se o arquivo é um arquivo .part
+  return filePath.endsWith('.part');
+}
+
+// watcher.on('add', function (filePath) {
+//   console.log('Novo arquivo:', filePath);
+//   send('newfile', filePath); // Envia o caminho do arquivo para o cliente via socket.io
+//   // Exibe um alerta na tela do cliente (requer suporte no lado do cliente)
+//   // send('showalert', 'Novo arquivo detectado: ' + filePath);
+
+//   // Realiza o download do arquivo
+//   downloadFile(filePath);
+// });
 
   // Incoming socket requests
   socket.on('open', checkAuth);
